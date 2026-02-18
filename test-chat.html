@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SWG.SHOP Chatbot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- CSS: ส่วนตกแต่ง --- */
+        :root {
+            --primary: #ff5e9a;
+            --primary-dark: #e04680;
+            --gradient: linear-gradient(135deg, #ff5e9a, #ff9bb5);
+            --bg-chat: #f5f7fb;
+        }
+
+        body {
+            font-family: 'Prompt', sans-serif;
+        }
+
+        /* 1. ปุ่มเปิดแชท (มุมขวาล่าง) */
+        .chatbot-toggle {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 65px;
+            height: 65px;
+            background: var(--gradient);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 94, 154, 0.4);
+            cursor: pointer;
+            z-index: 2147483647; /* สูงที่สุดเท่าที่เป็นไปได้ */
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chatbot-toggle:hover {
+            transform: scale(1.1) rotate(-5deg);
+        }
+
+        .chatbot-toggle svg {
+            width: 32px;
+            height: 32px;
+            stroke-width: 2;
+        }
+
+        /* 2. ตัวกล่องแชท (ซ่อนอยู่ตอนแรก) */
+        .chatbot-container {
+            position: fixed;
+            bottom: 110px;
+            right: 30px;
+            width: 380px;
+            height: 600px;
+            max-height: 80vh;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 2147483647;
+            font-family: 'Prompt', sans-serif;
+            
+            /* Animation สำหรับเปิด/ปิด */
+            opacity: 0;
+            transform: translateY(20px) scale(0.9);
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+
+        /* คลาสนี้จะถูกเติมโดย JS เพื่อแสดงกล่องแชท */
+        .chatbot-container.active {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: all;
+        }
+
+        /* Header */
+        .chatbot-header {
+            background: var(--gradient);
+            padding: 20px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-title h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .header-title p {
+            margin: 0;
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .chatbot-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .chatbot-close:hover { background: rgba(255,255,255,0.4); }
+
+        /* พื้นที่ข้อความ */
+        .chatbot-messages {
+            flex: 1;
+            padding: 20px;
+            background: var(--bg-chat);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* ข้อความ */
+        .chatbot-message {
+            max-width: 80%;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .message-text {
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        /* Bot Style */
+        .chatbot-message.bot .message-text {
+            background: white;
+            color: #444;
+            border-top-left-radius: 4px;
+        }
+
+        /* User Style */
+        .chatbot-message.user {
+            align-self: flex-end;
+        }
+        .chatbot-message.user .message-text {
+            background: var(--primary);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        /* Product Cards */
+        .chatbot-products {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding: 5px 0 15px 0;
+            scrollbar-width: none; /* Firefox */
+        }
+        .chatbot-products::-webkit-scrollbar { display: none; /* Chrome */ }
+
+        .chatbot-product-card {
+            min-width: 140px;
+            background: white;
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+            text-align: center;
+        }
+        .chatbot-product-card img {
+            width: 100%;
+            height: 110px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .chatbot-product-card h4 {
+            font-size: 12px;
+            margin: 0 0 5px 0;
+            color: #333;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .prod-price {
+            font-weight: bold;
+            color: var(--primary);
+            margin: 0;
+            font-size: 14px;
+        }
+
+        /* Action Buttons */
+        .chatbot-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 5px;
+        }
+        .chatbot-action-btn {
+            background: white;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .chatbot-action-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* Input Area */
+        .chatbot-input-area {
+            padding: 15px;
+            background: white;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        #chatbot-input {
+            flex: 1;
+            padding: 12px 20px;
+            border: 2px solid #eee;
+            border-radius: 30px;
+            outline: none;
+            transition: border-color 0.2s;
+            font-family: 'Prompt', sans-serif;
+        }
+        #chatbot-input:focus {
+            border-color: var(--primary);
+        }
+
+        #chatbot-send {
+            background: var(--primary);
+            color: white;
+            border: none;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+        #chatbot-send:hover { transform: scale(1.1); }
+
+        /* Mobile */
+        @media (max-width: 480px) {
+            .chatbot-container {
+                bottom: 0;
+                right: 0;
+                width: 100%;
+                height: 100%;
+                border-radius: 0;
+                max-height: none;
+            }
+            .chatbot-toggle {
+                bottom: 20px;
+                right: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <button id="chatbot-toggle" class="chatbot-toggle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+    </button>
+
+    <div id="chatbot-container" class="chatbot-container">
+        <div class="chatbot-header">
+            <div class="header-title">
+                <h3>SWG.SHOP Assistant</h3>
+                <p>ตอบไว ใจดี ปรึกษาได้ตลอด 24 ชม.</p>
+            </div>
+            <button id="chatbot-close" class="chatbot-close">✕</button>
+        </div>
+
+        <div id="chatbot-messages" class="chatbot-messages">
+            </div>
+
+        <div class="chatbot-input-area">
+            <input type="text" id="chatbot-input" placeholder="สอบถามสินค้า, ราคา..." autocomplete="off">
+            <button id="chatbot-send">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        class Chatbot {
+            constructor() {
+                // ผูกตัวแปรกับ HTML
+                this.elements = {
+                    toggle: document.getElementById('chatbot-toggle'),
+                    container: document.getElementById('chatbot-container'),
+                    close: document.getElementById('chatbot-close'),
+                    input: document.getElementById('chatbot-input'),
+                    send: document.getElementById('chatbot-send'),
+                    messages: document.getElementById('chatbot-messages')
+                };
+
+                // ข้อมูลสินค้า (ตามที่คุณให้มา)
+                this.products = [
+                    { name: 'ชุดเดรสลายตารางเล็ก', price: 350, img: 'https://i.postimg.cc/Kztd55dp/35dc8fc45069c0ed3e5afce155db32ba.jpg', theme: ['เดรส'], featured: true },
+                    { name: 'ชุดเซ็ตไหมพรมละมุน', price: 420, img: 'https://i.postimg.cc/nLTWk4YV/403ff7c17865d5e8f80b5d14df01df83.jpg', theme: ['เดรส'], bestseller: true },
+                    { name: 'Pastel Dream Sweater', price: 890, img: 'https://picsum.photos/500/350?random=1', theme: ['เสื้อ'], rating: 5 },
+                ];
+
+                this.historyKey = 'chatHistory_SWG';
+                this.init();
+            }
+
+            init() {
+                // โหลดประวัติเก่า (ถ้ามี)
+                this.history = JSON.parse(localStorage.getItem(this.historyKey)) || [];
+                
+                // Event Listeners
+                if(this.elements.toggle) this.elements.toggle.addEventListener('click', () => this.toggleChat());
+                if(this.elements.close) this.elements.close.addEventListener('click', () => this.toggleChat());
+                if(this.elements.send) this.elements.send.addEventListener('click', () => this.sendMessage());
+                if(this.elements.input) {
+                    this.elements.input.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') this.sendMessage();
+                    });
+                }
+
+                // Render ครั้งแรก
+                if (this.history.length > 0) {
+                    this.renderHistory();
+                } else {
+                    this.addBotMessage('สวัสดีค่ะ! 👋 ยินดีต้อนรับสู่ SWG.SHOP\nถามเรื่อง สินค้า / ราคา / ไซส์ ได้เลยค่ะ', true);
+                }
+            }
+
+            toggleChat() {
+                this.elements.container.classList.toggle('active');
+                // ถ้าเปิดอยู่ ให้โฟกัสที่ช่องพิมพ์
+                if(this.elements.container.classList.contains('active')) {
+                    setTimeout(() => this.elements.input.focus(), 300);
+                }
+            }
+
+            sendMessage() {
+                const text = this.elements.input.value.trim();
+                if (!text) return;
+
+                // 1. แสดงข้อความเรา
+                this.addUserMessage(text, true);
+                this.elements.input.value = '';
+
+                // 2. บอทคิดและตอบ (จำลอง Delay)
+                setTimeout(() => this.botReply(text), 600);
+            }
+
+            addUserMessage(text, save = false) {
+                const div = document.createElement('div');
+                div.className = 'chatbot-message user';
+                div.innerHTML = `<div class="message-text">${text}</div>`;
+                this.elements.messages.appendChild(div);
+                this.scrollToBottom();
+                if (save) this.saveHistory('user', text);
+            }
+
+            addBotMessage(text, save = false, buttons = null, products = null) {
+                const div = document.createElement('div');
+                div.className = 'chatbot-message bot';
+                
+                let content = `<div class="message-text">${text.replace(/\n/g, '<br>')}</div>`;
+
+                // ถ้ามีสินค้า
+                if (products && products.length > 0) {
+                    content += `<div class="chatbot-products">`;
+                    products.forEach(p => {
+                        content += `
+                            <div class="chatbot-product-card">
+                                <img src="${p.img}" alt="${p.name}">
+                                <h4>${p.name}</h4>
+                                <p class="prod-price">฿${p.price}</p>
+                            </div>
+                        `;
+                    });
+                    content += `</div>`;
+                }
+
+                // ถ้ามีปุ่ม
+                if (buttons && buttons.length > 0) {
+                    content += `<div class="chatbot-buttons">`;
+                    // สร้าง String HTML ของปุ่ม (ใช้ onclick แบบง่ายเพื่อ demo)
+                    buttons.forEach(btn => {
+                        content += `<button class="chatbot-action-btn" onclick="window.location.href='${btn.link}'">${btn.label}</button>`;
+                    });
+                    content += `</div>`;
+                }
+
+                div.innerHTML = content;
+                this.elements.messages.appendChild(div);
+                this.scrollToBottom();
+                if (save) this.saveHistory('bot', text);
+            }
+
+            botReply(message) {
+                const msg = message.toLowerCase();
+                let replied = false;
+
+                // --- LOGIC การตอบ ---
+                if (msg.includes('แนะนำ') || msg.includes('สินค้า')) {
+                    const recommend = this.products.slice(0, 3);
+                    this.addBotMessage('✨ นี่คือสินค้าแนะนำยอดฮิตช่วงนี้ค่ะ', true, null, recommend);
+                    replied = true;
+                }
+                else if (msg.includes('ราคา') || msg.includes('แพงไหม')) {
+                    this.addBotMessage('ราคาเริ่มต้นเพียง 350 บาทค่ะ! มีโปรโมชั่นส่งฟรีเมื่อซื้อครบ 1,500 บาทด้วยนะคะ', true, 
+                        [{label: 'ดูสินค้าทั้งหมด', link: 'collection.html'}]
+                    );
+                    replied = true;
+                }
+                else if (msg.includes('ส่ง') || msg.includes('กี่วัน')) {
+                    this.addBotMessage('📦 จัดส่งภายใน 1-3 วันทำการค่ะ (EMS/Kerry)', true);
+                    replied = true;
+                }
+                else if (msg.includes('สวัสดี') || msg.includes('hi')) {
+                    this.addBotMessage('สวัสดีค่ะ มีอะไรให้น้อง SWG ช่วยดูไหมคะ? 😊', true);
+                    replied = true;
+                }
+                else if (msg.includes('ติดต่อ') || msg.includes('โทร')) {
+                    this.addBotMessage('📞 ติดต่อเราได้ที่เบอร์ 063-897-671 หรือ Line: @swgshop ค่ะ', true);
+                    replied = true;
+                }
+
+                // Fallback
+                if (!replied) {
+                    this.addBotMessage('ขออภัยค่ะ น้องยังไม่เข้าใจคำถาม 😅 \nลองพิมพ์ว่า "แนะนำสินค้า" หรือ "ราคา" ดูไหมคะ?', true);
+                }
+            }
+
+            scrollToBottom() {
+                this.elements.messages.scrollTop = this.elements.messages.scrollHeight;
+            }
+
+            saveHistory(sender, text) {
+                this.history.push({ sender, text });
+                if (this.history.length > 50) this.history.shift(); // เก็บแค่ 50 ข้อความล่าสุด
+                localStorage.setItem(this.historyKey, JSON.stringify(this.history));
+            }
+
+            renderHistory() {
+                this.history.forEach(h => {
+                    if (h.sender === 'user') this.addUserMessage(h.text, false);
+                    else this.addBotMessage(h.text, false);
+                });
+            }
+        }
+
+        // เริ่มต้นทำงานเมื่อโหลดหน้าเว็บเสร็จ
+        document.addEventListener('DOMContentLoaded', () => {
+            new Chatbot();
+        });
+    </script>
+</body>
+</html>

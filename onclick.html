@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SWG Admin Chat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- CSS ส่วนตกแต่ง (เหมือนเดิม) --- */
+        body { font-family: 'Prompt', sans-serif; background-color: #f4f4f4; display: flex; justify-content: center; padding-top: 50px; }
+
+        .chat-container {
+            width: 100%;
+            max-width: 400px;
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 600px;
+        }
+
+        .chat-header {
+            background: #ffffff;
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .chat-header img { width: 40px; height: 40px; border-radius: 50%; }
+        .chat-header h3 { margin: 0; font-size: 16px; color: #333; }
+        .status { font-size: 12px; color: #00c853; }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            background: #f0f2f5;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 10px 15px;
+            border-radius: 15px;
+            font-size: 14px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .bot { background: #fff; align-self: flex-start; border-top-left-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .user { background: #ff5e9a; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+
+        .chat-input {
+            padding: 15px;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-top: 1px solid #eee;
+        }
+
+        input {
+            flex: 1;
+            padding: 12px 20px;
+            border: 1px solid #ddd;
+            border-radius: 30px;
+            outline: none;
+            font-family: 'Prompt', sans-serif;
+        }
+
+        /* ปุ่มแก้ไขใหม่: ให้ดูเหมือนในรูปที่คุณส่งมา */
+        button {
+            background: #ff5e9a;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-family: 'Prompt', sans-serif;
+            font-weight: 500;
+            transition: 0.2s;
+        }
+        button:hover { background: #e04680; }
+        button:active { transform: scale(0.95); }
+
+    </style>
+</head>
+<body>
+
+    <div class="chat-container">
+        <div class="chat-header">
+            <img src="https://cdn-icons-png.flaticon.com/512/4712/4712035.png" alt="Admin">
+            <div>
+                <h3>น้อง SWG (Admin)</h3>
+                <div class="status">● กำลังใช้งาน</div>
+            </div>
+        </div>
+
+        <div id="message-box" class="chat-messages">
+            <div class="message bot">สวัสดีค่ะลูกค้า! 👋 สนใจสินค้าตัวไหน ส่งรูปหรือพิมพ์ชื่อบอกแอดมินได้เลยนะคะ</div>
+        </div>
+
+        <div class="chat-input">
+            <input type="text" id="user-input" placeholder="พิมพ์ข้อความ..." onkeypress="checkEnter(event)">
+            
+            <button onclick="sendMessage()">ส่ง</button>
+        </div>
+    </div>
+
+    <script>
+        // ตัวแปรเก็บสถานะการคุย
+        let chatState = 0; // 0=เริ่ม, 1=ถามไซส์, 2=ถามจำนวน, 3=ถามที่อยู่
+        let orderData = {};
+
+        // ฟังก์ชันส่งข้อความ (ทำงานเมื่อกดปุ่มส่ง)
+        function sendMessage() {
+            const inputField = document.getElementById('user-input');
+            const text = inputField.value.trim();
+            const messageBox = document.getElementById('message-box');
+
+            if (text === "") return; // ถ้าว่างไม่ต้องทำอะไร
+
+            // 1. แสดงข้อความลูกค้า
+            const userMsg = `<div class="message user">${text}</div>`;
+            messageBox.innerHTML += userMsg;
+            inputField.value = ""; // ล้างช่องพิมพ์
+            scrollToBottom();
+
+            // 2. บอทคิดแป๊บนึงแล้วตอบ (Delay 600ms)
+            setTimeout(() => {
+                botReply(text);
+            }, 600);
+        }
+
+        // ฟังก์ชันเช็คปุ่ม Enter
+        function checkEnter(event) {
+            if (event.key === "Enter") {
+                sendMessage();
+            }
+        }
+
+        // ฟังก์ชันเลื่อนจอลงล่างสุด
+        function scrollToBottom() {
+            const messageBox = document.getElementById('message-box');
+            messageBox.scrollTop = messageBox.scrollHeight;
+        }
+
+        // ฟังก์ชันสมองกลบอท
+        function botReply(text) {
+            const messageBox = document.getElementById('message-box');
+            let replyText = "";
+
+            // Logic การตอบตามลำดับขั้น
+            if (text.includes("เริ่มใหม่") || text.includes("ยกเลิก")) {
+                chatState = 0;
+                replyText = "โอเคค่ะ เริ่มใหม่นะคะ รับสินค้าตัวไหนดีคะ?";
+            } else if (chatState === 0) {
+                // ขั้นตอนที่ 1: ลูกค้าบอกชื่อสินค้า
+                orderData.product = text;
+                replyText = `รับเป็นรุ่น "${text}" นะคะ <br>ลูกค้าใส่ไซส์อะไรดีคะ? (S, M, L, XL)`;
+                chatState = 1;
+            } else if (chatState === 1) {
+                // ขั้นตอนที่ 2: ลูกค้าบอกไซส์
+                orderData.size = text.toUpperCase();
+                replyText = `ได้เลยค่า ไซส์ ${orderData.size} นะคะ <br>รับกี่ตัวดีคะ?`;
+                chatState = 2;
+            } else if (chatState === 2) {
+                // ขั้นตอนที่ 3: ลูกค้าบอกจำนวน
+                orderData.qty = text;
+                replyText = `รับ ${text} ตัวนะคะ <br>📝 รบกวนขอ ชื่อ-ที่อยู่-เบอร์โทร สำหรับจัดส่งด้วยค่ะ`;
+                chatState = 3;
+            } else if (chatState === 3) {
+                // ขั้นตอนที่ 4: สรุปยอด
+                replyText = `
+                    <b>บันทึกข้อมูลเรียบร้อยค่ะ!</b> ✅<br>
+                    ------------------<br>
+                    สินค้า: ${orderData.product}<br>
+                    ไซส์: ${orderData.size}<br>
+                    จำนวน: ${orderData.qty}<br>
+                    ที่อยู่: ${text}<br>
+                    ------------------<br>
+                    💳 <b>โอนเงินได้ที่:</b><br>
+                    KBank: 123-456-7890 (SWG Shop)<br>
+                    โอนแล้วแจ้งสลิปได้เลยนะคะ!
+                `;
+                chatState = 4; // จบการขาย
+            } else {
+                replyText = "ขอบคุณค่ะ! เดี๋ยวแอดมินคนจริงจะรีบมาตรวจสอบยอดให้นะคะ 😊 (พิมพ์ 'เริ่มใหม่' เพื่อสั่งเพิ่ม)";
+            }
+
+            // แสดงข้อความบอท
+            const botMsg = `<div class="message bot">${replyText}</div>`;
+            messageBox.innerHTML += botMsg;
+            scrollToBottom();
+        }
+    </script>
+
+</body>
+</html>

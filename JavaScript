@@ -1,0 +1,215 @@
+class AdminBot {
+    constructor() {
+        this.messages = document.getElementById('chat-messages');
+        this.input = document.getElementById('chat-input');
+        this.sendBtn = document.getElementById('chat-send');
+        this.resetBtn = document.getElementById('reset-chat');
+
+        // ข้อมูลสินค้าจำลอง
+        this.products = [
+            { id: 1, name: 'เดรสลายตาราง', price: 350 },
+            { id: 2, name: 'เซ็ตไหมพรม', price: 420 },
+            { id: 3, name: 'เสื้อยืด Oversize', price: 590 }
+        ];
+
+        // สถานะการคุย (State Machine)
+        // steps: 'idle', 'select_size', 'select_qty', 'ask_address', 'confirm'
+        this.state = 'idle'; 
+        
+        // ตัวแปรเก็บข้อมูลออเดอร์
+        this.order = {
+            product: null,
+            size: null,
+            qty: 1,
+            address: null,
+            total: 0
+        };
+
+        this.init();
+    }
+
+    init() {
+        this.sendBtn.addEventListener('click', () => this.handleInput());
+        this.input.addEventListener('keypress', (e) => { if(e.key === 'Enter') this.handleInput(); });
+        this.resetBtn.addEventListener('click', () => this.resetChat());
+
+        // เริ่มต้นทักทาย
+        this.botSay('สวัสดีค่ะลูกค้า 🙏 สนใจสินค้าตัวไหน ส่งรูปหรือพิมพ์ชื่อบอกแอดมินได้เลยนะคะ');
+        this.showProductOptions();
+    }
+
+    resetChat() {
+        this.state = 'idle';
+        this.order = { product: null, size: null, qty: 1, address: null, total: 0 };
+        this.messages.innerHTML = '';
+        this.botSay('เริ่มใหม่นะคะ สนใจรับสินค้าตัวไหนดีคะ?');
+        this.showProductOptions();
+    }
+
+    handleInput() {
+        const text = this.input.value.trim();
+        if(!text) return;
+
+        this.userSay(text);
+        this.input.value = '';
+
+        // ดีเลย์นิดหน่อยให้เหมือนคนพิมพ์
+        setTimeout(() => this.processState(text), 600);
+    }
+
+    // --- สมองกลจัดการลำดับขั้น (The Brain) ---
+    processState(text) {
+        // ถ้าพิมพ์ว่า "ยกเลิก" หรือ "เริ่มใหม่"
+        if (text.includes('ยกเลิก') || text.includes('เริ่มใหม่')) {
+            this.resetChat();
+            return;
+        }
+
+        switch(this.state) {
+            case 'idle':
+                this.checkProduct(text);
+                break;
+            case 'select_size':
+                this.saveSize(text);
+                break;
+            case 'select_qty':
+                this.saveQty(text);
+                break;
+            case 'ask_address':
+                this.saveAddress(text);
+                break;
+            case 'confirm':
+                this.botSay('ขอบคุณที่อุดหนุนค่ะ! หากต้องการสั่งเพิ่ม กดปุ่มรีเฟรชด้านบนได้เลยนะคะ 😊');
+                break;
+        }
+    }
+
+    // 1. ขั้นตอนเลือกสินค้า
+    checkProduct(text) {
+        // หาว่าลูกค้าพิมพ์ชื่อสินค้าถูกไหม
+        const found = this.products.find(p => text.includes(p.name) || text.includes(p.id));
+        
+        if (found) {
+            this.order.product = found;
+            this.state = 'select_size';
+            this.botSay(`รับเป็นรุ่น "${found.name}" นะคะ ราคา ฿${found.price}`);
+            this.botSay('ลูกค้าใส่ไซส์อะไรดีคะ? (XS, S, M, L, XL)');
+        } else {
+            this.botSay('ขออภัยค่ะ แอดมินหาชื่อสินค้าไม่เจอ 😅 รบกวนเลือกจากรายการด้านล่างได้ไหมคะ?');
+            this.showProductOptions();
+        }
+    }
+
+    // 2. ขั้นตอนเลือกไซส์
+    saveSize(text) {
+        const size = text.toUpperCase();
+        if (['XS','S','M','L','XL','XXL','FREE SIZE'].some(s => size.includes(s))) {
+            this.order.size = size;
+            this.state = 'select_qty';
+            this.botSay(`โอเคค่ะ ไซส์ ${size} นะคะ 👌`);
+            this.botSay('รับกี่ตัวดีคะลูกค้า?');
+        } else {
+            this.botSay('รบกวนระบุไซส์เป็น S, M, L, XL ให้แอดมินหน่อยน้า');
+        }
+    }
+
+    // 3. ขั้นตอนเลือกจำนวน
+    saveQty(text) {
+        // ดึงตัวเลขจากข้อความ (เช่น "รับ 2 ตัวค่ะ" -> 2)
+        const qty = parseInt(text.replace(/\D/g, '')) || 1; // ถ้าหาตัวเลขไม่เจอให้เป็น 1
+        
+        this.order.qty = qty;
+        this.order.total = this.order.product.price * qty;
+        
+        this.state = 'ask_address';
+        this.botSay(`รับ ${qty} ตัวนะคะ ยอดรวม ${this.order.total} บาทค่ะ`);
+        this.botSay('📝 รบกวนขอ ชื่อ-ที่อยู่-เบอร์โทร สำหรับจัดส่งด้วยค่ะ');
+    }
+
+    // 4. ขั้นตอนรับที่อยู่และปิดการขาย
+    saveAddress(text) {
+        if (text.length < 10) {
+            this.botSay('ที่อยู่สั้นไปนิดนึงค่ะ รบกวนขอรายละเอียด (บ้านเลขที่ ตำบล อำเภอ) อีกรอบนะคะ 🙏');
+            return;
+        }
+
+        this.order.address = text;
+        this.state = 'confirm';
+        
+        // สรุปยอด
+        this.botSay('บันทึกข้อมูลเรียบร้อยค่ะ! นี่คือสรุปออเดอร์นะคะ 👇');
+        this.showOrderSummary();
+        this.botSay('💳 โอนเงินได้ที่:\nธนาคารกสิกรไทย\nเลขที่: 123-4-56789-0\nชื่อ: SWG Shop\n\nโอนแล้วแจ้งสลิปได้เลยนะคะ! ✨');
+    }
+
+    // --- Helper Functions ---
+
+    botSay(text) {
+        const div = document.createElement('div');
+        div.className = 'message bot';
+        div.innerText = text;
+        this.messages.appendChild(div);
+        this.scrollToBottom();
+    }
+
+    userSay(text) {
+        const div = document.createElement('div');
+        div.className = 'message user';
+        div.innerText = text;
+        this.messages.appendChild(div);
+        this.scrollToBottom();
+    }
+
+    showProductOptions() {
+        const div = document.createElement('div');
+        div.className = 'options-container';
+        this.products.forEach(p => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerText = p.name;
+            btn.onclick = () => {
+                this.userSay(p.name);
+                this.processState(p.name);
+            };
+            div.appendChild(btn);
+        });
+        
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'message bot';
+        msgDiv.style.background = 'transparent';
+        msgDiv.style.padding = '0';
+        msgDiv.style.boxShadow = 'none';
+        msgDiv.appendChild(div);
+        this.messages.appendChild(msgDiv);
+        this.scrollToBottom();
+    }
+
+    showOrderSummary() {
+        const div = document.createElement('div');
+        div.className = 'order-summary';
+        div.innerHTML = `
+            <div class="order-row"><span>สินค้า:</span> <span>${this.order.product.name}</span></div>
+            <div class="order-row"><span>ไซส์:</span> <span>${this.order.size}</span></div>
+            <div class="order-row"><span>จำนวน:</span> <span>${this.order.qty} ตัว</span></div>
+            <div class="order-row"><span>ที่อยู่:</span> <span>${this.order.address}</span></div>
+            <div class="order-total"><span>ยอดสุทธิ:</span> <span>฿${this.order.total.toLocaleString()}</span></div>
+        `;
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'message bot';
+        msgDiv.style.background = 'transparent'; 
+        msgDiv.style.padding = '0';
+        msgDiv.style.boxShadow = 'none';
+        msgDiv.appendChild(div);
+        this.messages.appendChild(msgDiv);
+        this.scrollToBottom();
+    }
+
+    scrollToBottom() {
+        this.messages.scrollTop = this.messages.scrollHeight;
+    }
+}
+
+// เริ่มต้น
+document.addEventListener('DOMContentLoaded', () => {
+    new AdminBot();
+});

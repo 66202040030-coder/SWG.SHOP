@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SWG Admin Chat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- CSS ตกแต่ง --- */
+        body { font-family: 'Prompt', sans-serif; background-color: #f4f4f4; padding: 20px; }
+
+        .admin-chat-container {
+            width: 100%;
+            max-width: 500px;
+            height: 600px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            margin: 0 auto;
+            overflow: hidden; /* ป้องกันทะลุ */
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #ff5e9a, #ff8fab);
+            padding: 15px 20px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .admin-profile { display: flex; align-items: center; gap: 12px; }
+        .admin-profile img { width: 45px; height: 45px; border-radius: 50%; border: 2px solid #fff; }
+        .admin-profile h3 { margin: 0; font-size: 16px; font-weight: 600; }
+        .status-online { font-size: 12px; opacity: 0.9; display: flex; align-items: center; gap: 4px; }
+        .status-dot { width: 8px; height: 8px; background: #00ff88; border-radius: 50%; display: inline-block; }
+
+        .reset-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 35px; height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .reset-btn:hover { background: rgba(255,255,255,0.4); }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            background: #f0f2f5;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .message.bot {
+            align-self: flex-start;
+            background: white;
+            color: #333;
+            border-top-left-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: #ff5e9a;
+            color: white;
+            border-bottom-right-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        /* ปุ่ม Quick Reply */
+        .options-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 5px; }
+        .option-btn {
+            background: white;
+            border: 1px solid #ff5e9a;
+            color: #ff5e9a;
+            padding: 6px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            font-family: 'Prompt', sans-serif;
+        }
+        .option-btn:hover { background: #ff5e9a; color: white; }
+
+        /* สรุปยอด */
+        .order-summary {
+            background: #fff;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px dashed #ff5e9a;
+            margin-top: 10px;
+            width: 100%;
+        }
+        .order-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; color: #555; }
+        .order-total {
+            display: flex; justify-content: space-between;
+            font-weight: bold; font-size: 16px;
+            border-top: 1px solid #eee; padding-top: 8px; margin-top: 8px;
+            color: #ff5e9a;
+        }
+
+        .chat-input-area {
+            padding: 15px;
+            background: white;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+        }
+        #chat-input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 2px solid #eee;
+            border-radius: 25px;
+            outline: none;
+            font-family: 'Prompt', sans-serif;
+            transition: border 0.2s;
+        }
+        #chat-input:focus { border-color: #ff5e9a; }
+        #chat-send {
+            background: #ff5e9a;
+            color: white;
+            border: none;
+            width: 50px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            font-family: 'Prompt', sans-serif;
+        }
+        #chat-send:hover { background: #e04680; }
+
+        /* Scrollbar */
+        .chat-messages::-webkit-scrollbar { width: 6px; }
+        .chat-messages::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+    <div id="admin-chat" class="admin-chat-container">
+        <div class="chat-header">
+            <div class="admin-profile">
+                <img src="https://cdn-icons-png.flaticon.com/512/4202/4202831.png" alt="Admin">
+                <div>
+                    <h3>แอดมินน้องส้ม 🍊</h3>
+                    <span class="status-online"><span class="status-dot"></span> ตอบกลับทันที</span>
+                </div>
+            </div>
+            <button id="reset-chat" class="reset-btn" title="เริ่มใหม่">↺</button>
+        </div>
+
+        <div id="chat-messages" class="chat-messages"></div>
+
+        <div class="chat-input-area">
+            <input type="text" id="chat-input" placeholder="พิมพ์ข้อความ..." autocomplete="off">
+            <button id="chat-send">ส่ง</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            class AdminBot {
+                constructor() {
+                    // เชื่อมต่อตัวแปรกับ HTML
+                    this.messages = document.getElementById('chat-messages');
+                    this.input = document.getElementById('chat-input');
+                    this.sendBtn = document.getElementById('chat-send');
+                    this.resetBtn = document.getElementById('reset-chat');
+
+                    // เช็คว่าหาปุ่มเจอไหม
+                    if(!this.input || !this.sendBtn) {
+                        console.error("หาปุ่มไม่เจอ! เช็ค ID ใน HTML ด่วน");
+                        return;
+                    }
+
+                    // ข้อมูลสินค้า
+                    this.products = [
+                        { id: 1, name: 'เดรสลายตาราง', price: 350 },
+                        { id: 2, name: 'เซ็ตไหมพรม', price: 420 },
+                        { id: 3, name: 'เสื้อยืด Oversize', price: 590 }
+                    ];
+
+                    this.state = 'idle'; // สถานะเริ่มต้น
+                    this.order = { product: null, size: null, qty: 1, address: null, total: 0 };
+
+                    this.init();
+                }
+
+                init() {
+                    // กดปุ่มส่ง
+                    this.sendBtn.addEventListener('click', () => {
+                        console.log("กดปุ่มส่งแล้ว");
+                        this.handleInput();
+                    });
+
+                    // กด Enter
+                    this.input.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') {
+                            console.log("กด Enter แล้ว");
+                            this.handleInput();
+                        }
+                    });
+
+                    // ปุ่ม Reset
+                    this.resetBtn.addEventListener('click', () => this.resetChat());
+
+                    // เริ่มต้น
+                    this.resetChat();
+                }
+
+                resetChat() {
+                    this.state = 'idle';
+                    this.order = { product: null, size: null, qty: 1, address: null, total: 0 };
+                    this.messages.innerHTML = '';
+                    this.botSay('สวัสดีค่ะลูกค้า 🙏 สนใจสินค้าชิ้นไหนจิ้มเลือกด้านล่าง หรือพิมพ์ถามได้เลยนะคะ');
+                    this.showProductOptions();
+                }
+
+                handleInput() {
+                    const text = this.input.value.trim();
+                    if (!text) return; // ถ้าว่างเปล่า ไม่ทำอะไร
+
+                    this.userSay(text);
+                    this.input.value = '';
+
+                    // ดีเลย์ 600ms ให้เหมือนคิด
+                    setTimeout(() => this.processState(text), 600);
+                }
+
+                // --- สมองกลจัดการขั้นตอน ---
+                processState(text) {
+                    // ดักจับคำสั่งยกเลิก
+                    if (text.includes('ยกเลิก') || text.includes('เริ่มใหม่')) {
+                        this.resetChat();
+                        return;
+                    }
+
+                    switch(this.state) {
+                        case 'idle':
+                            this.checkProduct(text);
+                            break;
+                        case 'select_size':
+                            this.saveSize(text);
+                            break;
+                        case 'select_qty':
+                            this.saveQty(text);
+                            break;
+                        case 'ask_address':
+                            this.saveAddress(text);
+                            break;
+                        case 'confirm':
+                            this.botSay('ขอบคุณที่อุดหนุนค่ะ! แอดมินได้รับข้อมูลแล้วจะรีบจัดส่งให้นะคะ ❤️ (กดปุ่มมุมบนเพื่อสั่งเพิ่ม)');
+                            break;
+                    }
+                }
+
+                // 1. ตรวจสอบสินค้า
+                checkProduct(text) {
+                    const found = this.products.find(p => text.includes(p.name));
+                    if (found) {
+                        this.order.product = found;
+                        this.state = 'select_size';
+                        this.botSay(`รับเป็นรุ่น "${found.name}" (฿${found.price}) นะคะ`);
+                        this.botSay('ลูกค้าใส่ไซส์อะไรดีคะ? (มี S, M, L, XL)');
+                    } else {
+                        this.botSay('ขอโทษด้วยค่ะ แอดมินหาชื่อสินค้านี้ไม่เจอ 😅 รบกวนกดเลือกจากรายการด้านล่างน้า');
+                        this.showProductOptions();
+                    }
+                }
+
+                // 2. เลือกไซส์
+                saveSize(text) {
+                    this.order.size = text.toUpperCase();
+                    this.state = 'select_qty';
+                    this.botSay(`โอเคค่า ไซส์ ${this.order.size}`);
+                    this.botSay('รับกี่ตัวดีคะ?');
+                }
+
+                // 3. เลือกจำนวน
+                saveQty(text) {
+                    const qty = parseInt(text.replace(/\D/g, '')) || 1;
+                    this.order.qty = qty;
+                    this.order.total = this.order.product.price * qty;
+                    this.state = 'ask_address';
+                    
+                    this.botSay(`รับ ${qty} ตัวนะคะ ยอดรวม ${this.order.total} บาท`);
+                    this.botSay('📝 รบกวนขอ ชื่อ-ที่อยู่-เบอร์โทร สำหรับจัดส่งด้วยค่า');
+                }
+
+                // 4. รับที่อยู่ & สรุปยอด
+                saveAddress(text) {
+                    if(text.length < 5) {
+                        this.botSay('ที่อยู่สั้นไปนิดนึงค่ะ ขอรายละเอียดเพิ่มหน่อยน้า 🙏');
+                        return;
+                    }
+                    this.order.address = text;
+                    this.state = 'confirm';
+                    this.botSay('บันทึกเรียบร้อยค่ะ! นี่คือใบสรุปออเดอร์นะคะ 👇');
+                    this.showOrderSummary();
+                    this.botSay('💳 โอนเงินได้ที่: KBANK 123-456-7890 (SWG Shop) โอนแล้วแจ้งสลิปได้เลยค่ะ!');
+                }
+
+                // --- Helper Functions ---
+                botSay(text) {
+                    const div = document.createElement('div');
+                    div.className = 'message bot';
+                    div.innerText = text;
+                    this.messages.appendChild(div);
+                    this.scrollToBottom();
+                }
+
+                userSay(text) {
+                    const div = document.createElement('div');
+                    div.className = 'message user';
+                    div.innerText = text;
+                    this.messages.appendChild(div);
+                    this.scrollToBottom();
+                }
+
+                showProductOptions() {
+                    const div = document.createElement('div');
+                    div.className = 'options-container';
+                    this.products.forEach(p => {
+                        const btn = document.createElement('button');
+                        btn.className = 'option-btn';
+                        btn.innerText = p.name;
+                        // แก้ไข: ใช้ Arrow Function เพื่อส่งค่า p.name
+                        btn.onclick = () => {
+                            this.userSay(p.name);
+                            // เรียก processState ตรงๆ เพื่อความชัวร์
+                            setTimeout(() => this.processState(p.name), 500);
+                        };
+                        div.appendChild(btn);
+                    });
+                    
+                    // ห่อปุ่มไว้ในกล่องข้อความบอทแบบใส
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = 'message bot';
+                    msgDiv.style.background = 'transparent';
+                    msgDiv.style.padding = '0';
+                    msgDiv.style.boxShadow = 'none';
+                    msgDiv.appendChild(div);
+                    this.messages.appendChild(msgDiv);
+                    this.scrollToBottom();
+                }
+
+                showOrderSummary() {
+                    const div = document.createElement('div');
+                    div.className = 'order-summary';
+                    div.innerHTML = `
+                        <div class="order-row"><span>สินค้า:</span> <span>${this.order.product.name}</span></div>
+                        <div class="order-row"><span>ไซส์:</span> <span>${this.order.size}</span></div>
+                        <div class="order-row"><span>จำนวน:</span> <span>${this.order.qty} ตัว</span></div>
+                        <div class="order-row"><span>ที่อยู่:</span> <span>${this.order.address}</span></div>
+                        <div class="order-total"><span>ยอดสุทธิ:</span> <span>฿${this.order.total.toLocaleString()}</span></div>
+                    `;
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = 'message bot';
+                    msgDiv.style.background = 'transparent';
+                    msgDiv.style.padding = '0';
+                    msgDiv.style.boxShadow = 'none';
+                    msgDiv.appendChild(msgDiv); // แก้ไข: appendChild(div) ไม่ใช่ msgDiv ซ้อน msgDiv
+                    msgDiv.innerHTML = ''; // Clear ก่อน
+                    msgDiv.appendChild(div);
+                    
+                    this.messages.appendChild(msgDiv);
+                    this.scrollToBottom();
+                }
+
+                scrollToBottom() {
+                    this.messages.scrollTop = this.messages.scrollHeight;
+                }
+            }
+
+            // เริ่มทำงาน
+            new AdminBot();
+        });
+    </script>
+</body>
+</html>
