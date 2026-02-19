@@ -1091,20 +1091,35 @@
         }
 
         function saveOrderToStorage(orderData) {
-            try {
-                let orders = JSON.parse(localStorage.getItem('swg_orders') || "[]");
-                let newOrder = {
-                    id: Date.now(),
-                    date: new Date().toLocaleString('th-TH'),
-                    ...orderData,
-                    status: "รอตรวจสอบ"
-                };
-                orders.push(newOrder);
-                localStorage.setItem('swg_orders', JSON.stringify(orders));
-                console.log("Saved:", newOrder);
-            } catch (e) {
-                console.error("Save Error:", e);
-            }
+            // เตรียมข้อมูลที่จะส่งไป Google Sheets
+            let newOrder = {
+                date: new Date().toLocaleString('th-TH'),
+                item: orderData.item,
+                size: orderData.size,
+                qty: orderData.qty,
+                total: orderData.total,
+                payment: orderData.payment,
+                address: orderData.address
+            };
+
+            // ❌ เอา URL ยาวๆ ที่ก๊อปมาจาก Google Script มาใส่ในเครื่องหมายคำพูดด้านล่างนี้ครับ ❌
+            const googleSheetURL = "https://script.google.com/macros/s/AKfycbznEz_eMs_m87IXG0jyQZBQG3zs9-LFQ7Ec4RjEXrBIrNT7VCGsStlbb3OnZ7Hdy4TH5g/exec"; 
+
+            // คำสั่งส่งข้อมูลข้ามเว็บ
+            fetch(googleSheetURL, {
+                method: 'POST',
+                mode: 'no-cors', // ใส่ไว้เพื่อไม่ให้เว็บบล็อกการส่งข้อมูล
+                headers: {
+                    'Content-Type': 'text/plain',
+                },
+                body: JSON.stringify(newOrder)
+            })
+            .then(() => {
+                console.log("ส่งข้อมูลเข้า Google Sheets สำเร็จ!");
+            })
+            .catch((error) => {
+                console.error("เกิดข้อผิดพลาด:", error);
+            });
         }
 
         function addBotMsg(html) {
