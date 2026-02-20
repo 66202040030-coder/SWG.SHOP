@@ -789,7 +789,8 @@
     </style>
 </head>
 <body>
-  <button class="chatbot-toggler" onclick="toggleChat()">
+  
+    <button class="chatbot-toggler" onclick="toggleChat()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
     </button>
 
@@ -954,11 +955,22 @@
                     myOrder.item = found.name;
                     myOrder.price = found.price;
                     chatStep = 2;
-                    addBotMsg(`รับ <b>${found.name}</b> (฿${found.price}) นะคะ ✨<br>รับไซส์อะไรดีคะ? (S, M, L, XL)`);
+                    
+                    // ส่วนที่เพิ่มรายละเอียดไซส์
+                    const sizeInfo = `
+                        รับ <b>${found.name}</b> (฿${found.price}) นะคะ ✨<br><br>
+                        📏 <b>รายละเอียดไซส์ (นิ้ว):</b><br>
+                        • <b>S</b> : อก 32" / เอว 26" / สะโพก 36"<br>
+                        • <b>M</b> : อก 34" / เอว 28" / สะโพก 38"<br>
+                        • <b>L</b> : อก 36" / เอว 30" / สะโพก 40"<br>
+                        • <b>XL</b>: อก 38" / เอว 32" / สะโพก 42"<br><br>
+                        รับไซส์อะไรดีคะ? (พิมพ์ S, M, L หรือ XL ได้เลยค่ะ)
+                    `;
+                    addBotMsg(sizeInfo);
                 } else {
                     addBotMsg("ไม่พบสินค้าค่ะ ลองเลือกจากเมนูได้เลยนะคะ 😊");
                 }
-            } 
+            }
             else if (chatStep === 2) {
                 myOrder.size = text.toUpperCase();
                 chatStep = 3;
